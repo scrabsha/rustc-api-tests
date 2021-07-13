@@ -11,11 +11,23 @@ extern crate rustc_middle;
 extern crate rustc_session;
 
 use rustc_driver::Compilation;
-use rustc_hir::def::Res;
+use rustc_hir::{
+    def::{DefKind, Res},
+    def_id::{CrateNum, DefId},
+};
 use rustc_interface::{interface::Compiler, Queries};
-use rustc_middle::{middle::cstore::ExternCrateSource, ty::TyCtxt};
+use rustc_middle::{
+    middle::cstore::ExternCrateSource,
+    ty::{TyCtxt, Visibility},
+};
 
-use std::{env, os::unix::prelude::CommandExt, process::Command};
+use std::{
+    collections::HashMap,
+    env,
+    fmt::{self, Display, Formatter},
+    os::unix::prelude::CommandExt,
+    process::Command,
+};
 
 fn main() {
     if is_run_by_cargo() {
@@ -117,18 +129,51 @@ fn dump_public_fns(tcx: &TyCtxt) {
                 continue;
             }
 
-            let items_in_root = tcx.item_children(def_id);
+            let api = CrateApi::from_crate(tcx, *krate);
+            println!("{}", api);
+        }
+    }
+}
 
-            for item in items_in_root {
-                print_item(tcx, item.res)
+struct CrateApi(HashMap<String, DefId>);
+
+impl CrateApi {
+    fn from_crate(tcx: &TyCtxt, cnum: CrateNum) -> CrateApi {
+        let def_id = cnum.as_def_id();
+        let mut api = CrateApi(HashMap::new());
+        api.visit_pub_mod(tcx, def_id);
+        api
+    }
+
+    fn visit_pub_mod(&mut self, tcx: &TyCtxt, def_id: DefId) {
+        let mod_name = tcx.def_path_str(def_id);
+        self.0.insert(mod_name, def_id);
+
+        for item in tcx.item_children(def_id) {
+            match &item.vis {
+                Visibility::Public => {}
+                _ => continue,
+            }
+
+            let (def_kind, def_id) = match &item.res {
+                Res::Def(def_kind, def_id) => (def_kind, def_id),
+                _ => continue,
+            };
+
+            match def_kind {
+                DefKind::Mod => self.visit_pub_mod(tcx, *def_id),
+                _ => {
+                    self.0.insert(tcx.def_path_str(*def_id), *def_id);
+                }
             }
         }
     }
 }
 
-fn print_item(tcx: &TyCtxt, resolution: Res) {
-    match resolution {
-        Res::Def(_, def_id) => println!(" - {}", tcx.def_path_str(def_id)),
-        _ => panic!(),
+impl Display for CrateApi {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.0
+            .iter()
+            .try_for_each(|(path, id)| writeln!(f, "{} ({:?})", path, id))
     }
 }
