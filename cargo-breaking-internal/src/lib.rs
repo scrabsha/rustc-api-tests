@@ -1,4 +1,3 @@
-pub use current::*;
-pub use previous::*;
+use current::*;
 
 extern crate current;

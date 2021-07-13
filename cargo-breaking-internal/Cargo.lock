@@ -7,13 +7,8 @@ name = "cargo-breaking-internal"
 version = "0.1.0"
 dependencies = [
  "current",
- "previous",
 ]
 
 [[package]]
 name = "current"
-version = "0.1.0"
-
-[[package]]
-name = "previous"
 version = "0.1.0"

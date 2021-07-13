@@ -1,5 +1,4 @@
 #![allow(unused)]
-#![crate_type = "dylib"]
 
 pub use std::string::String;
 
