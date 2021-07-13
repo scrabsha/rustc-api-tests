@@ -11,8 +11,9 @@ extern crate rustc_middle;
 extern crate rustc_session;
 
 use rustc_driver::Compilation;
+use rustc_hir::def::Res;
 use rustc_interface::{interface::Compiler, Queries};
-use rustc_middle::ty::TyCtxt;
+use rustc_middle::{middle::cstore::ExternCrateSource, ty::TyCtxt};
 
 use std::{env, os::unix::prelude::CommandExt, process::Command};
 
@@ -104,13 +105,30 @@ fn dump_public_fns(tcx: &TyCtxt) {
     let crates = tcx.crates(()).iter();
 
     for krate in crates {
-        let symbols = tcx
-            .exported_symbols(*krate)
-            .iter()
-            .take(5)
-            .collect::<Vec<_>>();
+        let def_id = krate.as_def_id();
 
-        dbg!(tcx.crate_name(*krate));
-        dbg!(symbols);
+        if let Some(extern_crate) = tcx.extern_crate(def_id) {
+            match extern_crate.src {
+                ExternCrateSource::Extern(_) => {}
+                ExternCrateSource::Path => continue,
+            }
+
+            if tcx.item_name(def_id).as_str() != "current" {
+                continue;
+            }
+
+            let items_in_root = tcx.item_children(def_id);
+
+            for item in items_in_root {
+                print_item(tcx, item.res)
+            }
+        }
+    }
+}
+
+fn print_item(tcx: &TyCtxt, resolution: Res) {
+    match resolution {
+        Res::Def(_, def_id) => println!(" - {}", tcx.def_path_str(def_id)),
+        _ => panic!(),
     }
 }

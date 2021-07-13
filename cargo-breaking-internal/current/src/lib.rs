@@ -6,7 +6,9 @@ pub mod foo {
     pub fn bar() {}
 }
 
-pub fn f(a: u8) {}
+pub fn f(a: u8) {
+    panic!("foobar")
+}
 
 pub trait T {
     fn a() -> u32 {
