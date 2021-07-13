@@ -102,19 +102,35 @@ impl rustc_driver::Callbacks for CompilerInterface {
 }
 
 fn dump_public_fns(tcx: &TyCtxt) {
-    let mut crates = tcx.crates(()).iter();
+    let crates = tcx.crates(()).iter();
 
+    for krate in crates {
+        let symbols = tcx
+            .exported_symbols(*krate)
+            .iter()
+            .take(5)
+            .collect::<Vec<_>>();
+        dbg!(symbols);
+        dbg!(tcx.crate_name(*krate));
+    }
+    /*
     let std = crates.next().unwrap();
 
     dbg!(&tcx.exported_symbols(*std)[0..20]);
 
     let mut crates = crates
+        .inspect(|cnum| {
+            dbg!(tcx.crate_name(**cnum).as_str());
+        })
         .filter(|cnum| tcx.crate_name(**cnum).as_str() == "current")
         .copied();
 
-    let current = crates.next().unwrap();
+    let current = dbg!(crates.next().unwrap());
 
     dbg!(tcx.exported_symbols(current));
 
     assert!(crates.next().is_none());
+    */
+
+    // dbg!(tcx.all_traits(()));
 }
